@@ -19,5 +19,7 @@ plotv(xOld);
 plotv(xNew);
 
 %============ INVERTING THE GENERAL TRANSFORM MATRIX =========
-T_inv = [T(1:3,1:3)', -T(1:3,1:3)*q;
-         0,     0,        0,      1]
+T_inv_fast = [T(1:3,1:3)', -T(1:3,1:3)*q;
+              0,     0,        0,      1]
+     
+T_inv_function = inv(T)
