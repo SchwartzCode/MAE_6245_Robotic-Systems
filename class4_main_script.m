@@ -1,11 +1,13 @@
 clear all;
 close all;
 
-%quatMultiply([1;2;3;0.5],[2;3;1;0.75])
+xAxis = [1;0;0];
+yAxis = [0;1;0];
+zAxis = [0;0;1];
 
-alpha = 0* pi / 180; %60 degrees
-beta = 0*pi / 180;  %25 degrees
-gamma = 90*pi / 180; %30 degrees
+alpha = 60* pi / 180; %60 degrees
+beta = 45*pi / 180;  %25 degrees
+gamma = 30*pi / 180; %30 degrees
 
 Rx = [1,    0,          0;
       0,    cos(gamma), -sin(gamma);
@@ -29,6 +31,21 @@ q3 = (R_tot(2,1) - R_tot(2,1)) / (4*q4);
 q = [q1; q2; q3; q4];
 q_inv = [-q(1:3); q(4)];
 
-v=[0;0;1];
+xNew = quatMultiply(quatMultiply(q_inv, [xAxis;0]), q);
+yNew = quatMultiply(quatMultiply(q_inv, [yAxis;0]), q);
+zNew = quatMultiply(quatMultiply(q_inv, [zAxis;0]), q);
 
-v_rot = quatMultiply(quatMultiply(q_inv, [v;0]), q)
+% ======== PLOTTING ==========
+figure(1);
+hold on;
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+
+quiver3(0,0,0,xAxis(1), xAxis(2), xAxis(3),'r', 'Linewidth', 2);
+quiver3(0,0,0,yAxis(1), yAxis(2), yAxis(3),'g', 'Linewidth', 2);
+quiver3(0,0,0,zAxis(1), zAxis(2), zAxis(3),'b', 'Linewidth', 2);
+
+quiver3(0,0,0,xNew(1), xNew(2), xNew(3),'--r', 'Linewidth', 2);
+quiver3(0,0,0,yNew(1), yNew(2), yNew(3),'--g', 'Linewidth', 2);
+quiver3(0,0,0,zNew(1), zNew(2), zNew(3),'--b', 'Linewidth', 2);
