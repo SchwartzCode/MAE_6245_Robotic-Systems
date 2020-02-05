@@ -1,8 +1,11 @@
+clear all;
+close all;
+
 %quatMultiply([1;2;3;0.5],[2;3;1;0.75])
 
-alpha = 60* pi / 180; %60 degrees
-beta = 45*pi / 180;  %25 degrees
-gamma = 30*pi / 180; %30 degrees
+alpha = 0* pi / 180; %60 degrees
+beta = 0*pi / 180;  %25 degrees
+gamma = 90*pi / 180; %30 degrees
 
 Rx = [1,    0,          0;
       0,    cos(gamma), -sin(gamma);
@@ -23,4 +26,9 @@ q1 = (R_tot(2,3) - R_tot(3,2)) / (4*q4);
 q2 = (R_tot(3,1) - R_tot(1,3)) / (4*q4);
 q3 = (R_tot(2,1) - R_tot(2,1)) / (4*q4);
 
-quat_tot = [q1; q2; q3; q4]
+q = [q1; q2; q3; q4];
+q_inv = [-q(1:3); q(4)];
+
+v=[0;0;1];
+
+v_rot = quatMultiply(quatMultiply(q_inv, [v;0]), q)
