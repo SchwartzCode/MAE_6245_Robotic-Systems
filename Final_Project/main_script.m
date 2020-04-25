@@ -1,11 +1,12 @@
-A = zeros(12,12);
-
+clear all;
+close all;
 g = 9.81; %[m/s^2]
-Ix = 3;
-Iy = 4;
-Iz = 5; 
-m = 10; % mass [kg]
+Ix = 0.004856; %kg*m^2
+Iy = 0.004856; %kg*m^2
+Iz = 0.008801; %kg*m^2
+m = 0.468; % mass [kg]
 
+A = zeros(12,12);
 A(1,4) = 1;
 A(2,5) = 1;
 A(3,6) = 1;
@@ -19,4 +20,71 @@ B = zeros(12,4);
 B(4,2) = 1/Ix;
 B(5,3) = 1/Iy;
 B(6,4) = 1/Iz;
-B(9,1) = 1/m
+B(9,1) = 1/m;
+
+dt = 1/100;
+nt = 1500;
+
+QdiagVals = [1, 1, 1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1000, 1000, 1000];
+Q = diag(QdiagVals);
+RdiagVals = 10*[1e-2, 1000, 1000, 1000];
+R = diag(RdiagVals);
+
+LQRgains = lqrd(A,B,Q,R,dt*10);
+finalStateDesired = [0; 0; 0; 0; 0; 0; 0; 0; 0; 1; 2; 3];
+
+state = zeros(12,1);
+input = zeros(4,1);
+windDisturbance = zeros(6,1);
+
+stateHist = state;
+%state(1) = 1;
+%state(5) = 0.1;
+%state(6) = 2.5;
+
+Kp_Z = 45;%-0.05;
+Kd_Z = 10;%-0.00988;
+Kp = 1.4;%0.001;
+
+for i=0:nt 
+    if mod(i,3)==0
+      %outer control loop
+      stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired
+      goalState = stateDot*dt + state;
+      
+    end
+       % PD controller to keep robot relatively stable
+       %inner control loop
+       
+       
+       diffs = goalState - state;
+       
+       input(1) = Kp_Z*diffs(12) + Kd_Z*diffs(9);
+       input(2) = Kp*diffs(4);
+       input(3) = Kp*diffs(5);
+
+       newState = updateState(state, input, windDisturbance, dt);
+       stateHist = [stateHist newState];
+       state = newState;
+  
+end
+
+t = linspace(0,(nt+2)*dt,nt+2);
+plot(t, stateHist(10,:)); %plotting x vals versus time
+hold on;
+plot(t, stateHist(11,:)); %plotting y vals versus time
+hold on;
+plot(t, stateHist(12,:)); %plotting z vals versus time
+legend({'x','y','z'}, 'Location','northwest');
+xlabel("Time [sec]");
+ylabel("Position [m]");
+
+figure();
+plot(t, stateHist(1,:)); %plotting phi vals versus time
+hold on;
+plot(t, stateHist(2,:)); %plotting theta vals versus time
+hold on;
+plot(t, stateHist(3,:)); %plotting trident vals versus time
+legend({'phi', 'theta', 'psi'});
+xlabel("Time [sec]");
+ylabel("Position [rad]");
