@@ -46,10 +46,23 @@ Kp_Z = 45;%-0.05;
 Kd_Z = 10;%-0.00988;
 Kp = 1.4;%0.001;
 
+C = zeros(6,12);
+C(1,1) = 1;
+C(2,2) = 1;
+C(3,3) = 1;
+C(4,10) = 1;
+C(5,11) = 1;
+C(6,12) = 1;
+Plant = ss(A,[B B],C,0,-1);
+Q = 2.5; 
+R = 1;
+[kalmf,L,P,M] = kalman(Plant,Q,R);
+M
+
 for i=0:nt 
     if mod(i,3)==0
       %outer control loop
-      stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired
+      stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired;
       goalState = stateDot*dt + state;
       
     end
