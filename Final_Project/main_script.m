@@ -1,5 +1,7 @@
 clear all;
 close all;
+clc;
+
 g = 9.81; %[m/s^2]
 Ix = 0.004856; %kg*m^2
 Iy = 0.004856; %kg*m^2
@@ -23,24 +25,22 @@ B(6,4) = 1/Iz;
 B(9,1) = 1/m;
 
 dt = 1/100;
-nt = 1500;
+nt = 10000; %kind of a formality since program ends automatically after reaching
+            % all waypoints, just make sure it is adequately large
 
 QdiagVals = [1, 1, 1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1000, 1000, 1000];
 Q = diag(QdiagVals);
-RdiagVals = 10*[1e-2, 1000, 1000, 1000];
+RdiagVals = 10*[1e-2, 10000, 10000, 1000];
 R = diag(RdiagVals);
 
 LQRgains = lqrd(A,B,Q,R,dt*10);
 finalStateDesired = [0; 0; 0; 0; 0; 0; 0; 0; 0; 1; 2; 3];
+wayPoints = [1 2 3; 4 4 4; 3 2 1];
 
 state = zeros(12,1);
 input = zeros(4,1);
 windDisturbance = zeros(6,1);
 
-stateHist = state;
-%state(1) = 1;
-%state(5) = 0.1;
-%state(6) = 2.5;
 
 Kp_Z = 45;%-0.05;
 Kd_Z = 10;%-0.00988;
@@ -57,10 +57,29 @@ Plant = ss(A,[B B],C,0,-1);
 Q = 2.5; 
 R = 1;
 [kalmf,L,P,M] = kalman(Plant,Q,R);
-M
+M;
+
+stateHist = state;
+
+newState = state;
+newMeasuredState = zeros(6,1);
+measuredStateHist = newMeasuredState;
+
+inputHist = input;
+
+
+posCounter = 1;
 
 for i=0:nt 
     if mod(i,3)==0
+      stateErr = sum( abs(finalStateDesired - state));
+      if stateErr < 0.1 && posCounter == length(wayPoints)
+          nt = i;
+         break;
+      elseif stateErr < 0.005
+          posCounter = posCounter + 1;
+          finalStateDesired(10:12) = wayPoints(posCounter,:)
+      end
       %outer control loop
       stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired;
       goalState = stateDot*dt + state;
@@ -76,13 +95,23 @@ for i=0:nt
        input(2) = Kp*diffs(4);
        input(3) = Kp*diffs(5);
 
-       newState = updateState(state, input, windDisturbance, dt);
+       [newState, newMeasuredState] = updateState(state, input, dt);
        stateHist = [stateHist newState];
+       newMeasuredState = 0.9*C*(A*stateHist(:,end) + B*inputHist(:,end)) + 0.1*(C*stateHist(:,end));
+       measuredStateHist = [measuredStateHist newMeasuredState];
+       inputHist = [inputHist input];
+       
        state = newState;
+     
   
 end
 
-t = linspace(0,(nt+2)*dt,nt+2);
+t = linspace(0,(nt+1)*dt,nt+1);
+
+%length(t)
+%length(stateHist(10,:))
+
+
 plot(t, stateHist(10,:)); %plotting x vals versus time
 hold on;
 plot(t, stateHist(11,:)); %plotting y vals versus time
@@ -101,3 +130,14 @@ plot(t, stateHist(3,:)); %plotting trident vals versus time
 legend({'phi', 'theta', 'psi'});
 xlabel("Time [sec]");
 ylabel("Position [rad]");
+
+figure();
+scatter3(0,0,0, 'filled');
+hold on;
+plot3(stateHist(10,:), stateHist(11,:), stateHist(12,:));
+hold on;
+scatter3(wayPoints(:,1), wayPoints(:,2), wayPoints(:,3), 'filled');    
+xlabel("X [m]");
+ylabel("Y [m]");
+zlabel("Z [m]");
+legend({'Initial Position', 'Flight Path', 'Waypoints'});

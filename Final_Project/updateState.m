@@ -1,4 +1,4 @@
-function [newState] = updateState(state, input, windDisturbance, dt)
+function [newState, measuredState] = updateState(state, input, dt)
     
     g = 9.81; %[m/s^2]
     Ix = 0.004856; %kg*m^2
@@ -22,6 +22,15 @@ function [newState] = updateState(state, input, windDisturbance, dt)
     B(6,4) = 1/Iz;
     B(9,1) = 1/m;
 
+    
+    C = zeros(6,12);
+    C(1,1) = 1;
+    C(2,2) = 1;
+    C(3,3) = 1;
+    C(4,10) = 1;
+    C(5,11) = 1;
+    C(6,12) = 1;
+    
     D = zeros(12,6);
     D(7,1) = 1/m;
     D(8,2) = 1/m;
@@ -30,6 +39,13 @@ function [newState] = updateState(state, input, windDisturbance, dt)
     D(5,5) = 1/Iy;
     D(6,6) = 1/Iz;
     
-    stateDot = A*state + B*input + D*windDisturbance;
+    %Tried to implement a Kalman filter with these signals as noise but
+    % couldn't figure out the implementation
+    %w = sqrt(0.01)*randn(6,1);
+    %v = sqrt(0.2)*randn(6,1);
+    
+    
+    stateDot = A*state + B*input;
     newState = stateDot*dt + state;
+    measuredState = C*newState; 
 end
