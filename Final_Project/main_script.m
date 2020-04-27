@@ -30,7 +30,7 @@ nt = 10000; %kind of a formality since program ends automatically after reaching
 
 QdiagVals = [1, 1, 1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1000, 1000, 1000];
 Q = diag(QdiagVals);
-RdiagVals = 10*[1e-2, 10000, 10000, 1000];
+RdiagVals = 10*[1e-2, 1e5, 1e5, 1000];
 R = diag(RdiagVals);
 
 LQRgains = lqrd(A,B,Q,R,dt*10);
@@ -42,9 +42,10 @@ input = zeros(4,1);
 windDisturbance = zeros(6,1);
 
 
-Kp_Z = 45;%-0.05;
-Kd_Z = 10;%-0.00988;
-Kp = 1.4;%0.001;
+Kp_Z = 1;
+Kd_Z = 120;
+Kp = 2;
+Ki = 3;
 
 C = zeros(6,12);
 C(1,1) = 1;
@@ -73,7 +74,7 @@ posCounter = 1;
 for i=0:nt 
     if mod(i,3)==0
       stateErr = sum( abs(finalStateDesired - state));
-      if stateErr < 0.1 && posCounter == length(wayPoints)
+      if stateErr < 0.005 && posCounter == length(wayPoints)
           nt = i;
          break;
       elseif stateErr < 0.005
@@ -92,8 +93,8 @@ for i=0:nt
        diffs = goalState - state;
        
        input(1) = Kp_Z*diffs(12) + Kd_Z*diffs(9);
-       input(2) = Kp*diffs(4);
-       input(3) = Kp*diffs(5);
+       input(2) = Kp*diffs(4) + Ki*diffs(1);
+       input(3) = Kp*diffs(5) + Ki*diffs(2);
 
        [newState, newMeasuredState] = updateState(state, input, dt);
        stateHist = [stateHist newState];
@@ -110,6 +111,7 @@ t = linspace(0,(nt+1)*dt,nt+1);
 
 %length(t)
 %length(stateHist(10,:))
+
 
 
 plot(t, stateHist(10,:)); %plotting x vals versus time
