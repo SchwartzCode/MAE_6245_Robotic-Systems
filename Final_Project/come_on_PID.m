@@ -25,15 +25,15 @@ B(6,4) = 1/Iz;
 B(9,1) = 1/m;
 
 dt = 1/100;
-nt = 25000; %kind of a formality since program ends automatically after reaching
+nt = 15000; %kind of a formality since program ends automatically after reaching
             % all waypoints, just make sure it is adequately large
 
-QdiagVals = [1, 1, 1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1000, 1000, 1000];
+QdiagVals = [1, 1, 1, 0.1, 0.1, 10, 5e3, 5e3, 5e3, 1000, 1000, 1000];
 Q = diag(QdiagVals);
-RdiagVals = 0.001*[1e-2, 1, 1, 1000];
+RdiagVals = 0.001*[1e-2, 10, 10, 1000];
 R = diag(RdiagVals);
 
-LQRgains = lqrd(A,B,Q,R,dt*10);
+LQRgains = lqrd(A,B,Q,R,dt*5);
 finalStateDesired = [0; 0; 0; 0; 0; 0; 0; 0; 0; 1; 2; 3];
 wayPoints = [1 2 3; 4 4 4; 3 2 1];
 
@@ -46,7 +46,7 @@ Kp_Z = 8;
 Kd_Z = 0.5;
 
 Kp = -2;
-Kd = -0.05;
+Kd = -0.1;
 
 
 C = zeros(6,12);
@@ -71,15 +71,17 @@ measuredStateHist = newMeasuredState;
 inputHist = input;
 
 
+wayPointError = 0.1; %largest difference in state desired versus current state
+                      % that is acceptable
 posCounter = 1;
 
 for i=0:nt 
       if mod(i,10)==0
           stateErr = sum( abs(finalStateDesired - state));
-          if stateErr < 0.005 && posCounter == length(wayPoints)
+          if stateErr < wayPointError && posCounter == length(wayPoints)
               nt = i-1;
              break;
-          elseif stateErr < 0.005
+          elseif stateErr < wayPointError
               posCounter = posCounter + 1;
               finalStateDesired(10:12) = wayPoints(posCounter,:)
           end
@@ -96,7 +98,7 @@ for i=0:nt
 
            diffs = finalStateDesired - state;
            
-           input(1) = Kp_Z*diffs(12) + Kd_Z*diffs(9);
+           %input(1) = Kp_Z*diffs(12) + Kd_Z*diffs(9);
            input(2) = Kd*state(4) + Kp*state(1);
            input(3) = Kd*state(5) + Kp*state(2);
 
