@@ -30,7 +30,7 @@ nt = 15000; %kind of a formality since program ends automatically after reaching
 
 QdiagVals = [1, 1, 1, 0.1, 0.1, 10, 5e3, 5e3, 5e3, 1000, 1000, 1000];
 Q = diag(QdiagVals);
-RdiagVals = 0.001*[1e-2, 10, 10, 1000];
+RdiagVals = 0.001*[1, 1e5, 1e5, 1000];
 R = diag(RdiagVals);
 
 LQRgains = lqrd(A,B,Q,R,dt*5);
@@ -71,7 +71,7 @@ measuredStateHist = newMeasuredState;
 inputHist = input;
 
 
-wayPointError = 0.1; %largest difference in state desired versus current state
+wayPointError = 0.05; %largest difference in state desired versus current state
                       % that is acceptable
 posCounter = 1;
 
@@ -139,13 +139,13 @@ legend({'phi', 'theta', 'psi'});
 xlabel("Time [sec]");
 ylabel("Position [rad]");
 
-% figure();
-% scatter3(0,0,0, 'filled');
-% hold on;
-% plot3(stateHist(10,:), stateHist(11,:), stateHist(12,:));
-% hold on;
-% scatter3(wayPoints(:,1), wayPoints(:,2), wayPoints(:,3), 'filled');    
-% xlabel("X [m]");
-% ylabel("Y [m]");
-% zlabel("Z [m]");
-% legend({'Initial Position', 'Flight Path', 'Waypoints'});
+figure();
+scatter3(0,0,0, 'filled');
+hold on;
+plot3(stateHist(10,:), stateHist(11,:), stateHist(12,:));
+hold on;
+scatter3(wayPoints(:,1), wayPoints(:,2), wayPoints(:,3), 'filled');    
+xlabel("X [m]");
+ylabel("Y [m]");
+zlabel("Z [m]");
+legend({'Initial Position', 'Flight Path', 'Waypoints'});

@@ -45,7 +45,7 @@ windDisturbance = zeros(6,1);
 Kp_Z = 1;
 Kd_Z = 120;
 Kp = 2;
-Ki = 3;
+Ki = 0.1;
 
 C = zeros(6,12);
 C(1,1) = 1;
