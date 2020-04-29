@@ -1,7 +1,30 @@
+%  Quadrotor Control Simulation
+%   Authors:   Jonathan Schwartz & Rohan Daran
+%   Course:    MAE 6245 - Robotic Systems
+%===============================================
+% This program simulates the dynamics of a quadrotor, and applies two
+% controllers in series. The first controls the angular position of the
+% quadrotor with a PD controller. The second (which operates at a tenth of 
+% the frequency as the first controller), controls translational position 
+% of the quadrotor with an LQR controller. 
+% 
+% The quadrotor is passed a series of waypoints, and it will navigate to
+% them in order. It starts moving to the next waypoint when it's state is
+% within a certain margin of error of the desired state (all zeros except
+% for translational position, which is the waypoint the quadrotor is trying
+% to reach).
+%
+% The script will end once the quadrotor reaches the last waypoint. At that
+% point, state data from the simulation is plotted in 3 separate graphs
+% (two are 2D and plot state data versus time, and one is 3D and plots the
+% path the quadrotor took). 
+
 clear all;
 close all;
 clc;
 
+% DEFINING CONSTANTS AND STATE SPACE MATRICES
+%=====================================================
 g = 9.81; %[m/s^2]
 Ix = 0.004856; %kg*m^2
 Iy = 0.004856; %kg*m^2
@@ -24,27 +47,6 @@ B(5,3) = 1/Iy;
 B(6,4) = 1/Iz;
 B(9,1) = 1/m;
 
-dt = 1/100;
-nt = 15000; %kind of a formality since program ends automatically after reaching
-            % all waypoints, just make sure it is adequately large
-
-QdiagVals = [1, 1, 1, 0.1, 0.1, 10, 5e3, 5e3, 5e3, 1000, 1000, 1000];
-Q = diag(QdiagVals);
-RdiagVals = 0.001*[1e-2, 10, 10, 1000];
-R = diag(RdiagVals);
-
-LQRgains = lqrd(A,B,Q,R,dt*5);
-finalStateDesired = [0; 0; 0; 0; 0; 0; 0; 0; 0; 1; 2; 3];
-wayPoints = [1 2 3; 4 4 4; 3 2 1];
-
-state = zeros(12,1);
-input = zeros(4,1);
-windDisturbance = zeros(6,1);
-
-
-Kp = -0.05;%0.001;
-Kd = -0.1;
-
 C = zeros(6,12);
 C(1,1) = 1;
 C(2,2) = 1;
@@ -52,59 +54,91 @@ C(3,3) = 1;
 C(4,10) = 1;
 C(5,11) = 1;
 C(6,12) = 1;
-Plant = ss(A,[B B],C,0,-1);
-Q = 2.5; 
-R = 1;
-[kalmf,L,P,M] = kalman(Plant,Q,R);
-M;
 
+dt = 1/100;
+nt = 15000; %kind of a formality since program ends automatically after reaching
+            % all waypoints, just make sure it is adequately large
+            
+% LIST OF WAYPOINTS FOR QUADROTOR TO TRAVERSE
+wayPoints = [1 2 3; 4 4 4; 3 2 1];
+
+% INITIAL DEFINITIONS OF STATE AND INPUT VECTORS
+finalStateDesired = [0; 0; 0; 0; 0; 0; 0; 0; 0; wayPoints(1,1); wayPoints(1,2); wayPoints(1,3)];
+state = zeros(12,1);
+input = zeros(4,1);
+% INITIAL DEFINITIONS OF ARRAYS FOR LOGGING STATE DATA
 stateHist = state;
 
-newState = state;
-newMeasuredState = zeros(6,1);
-measuredStateHist = newMeasuredState;
 
-inputHist = input;
+% =========================================================================
+%           !IMPOPRTANT!                  !IMPORTANT!
+% =========================================================================
+% Below are the things you'll want to change to adjust to change the
+% performance of the controllers. Keep in mind that if you adjust one, you
+% may have to adjust the other to accomodate the changes.
 
-wayPointError = 0.1; %largest difference in state desired versus current state
-                      % that is acceptable
+% DEFINING LQR CONTROLLER CONSTANTS
+QdiagVals = [1, 1, 1, 0.1, 0.1, 10, 5e3, 5e3, 5e3, 1000, 1000, 1000];
+Q = diag(QdiagVals);
+RdiagVals = [1e-5, 1e3, 1e3, 1];
+R = diag(RdiagVals);
 
-posCounter = 1;
+% CALCULATING LQR GAINS FOR SYSTEM
+%   note: increasing the coefficient dt is multiplied by will increase the
+%         effect the LQR has over the quadrotor (also means angles will
+%         diverge more from zero which increases risk of instability)
+LQRgains = lqrd(A,B,Q,R,dt*5);
 
+% GAINS FOR PD CONTROLLER
+Kp = -0.4;
+Kd = -0.15;
+
+% Largest difference in state desired versus current state that is 
+% acceptable. Look at the "finalStateDesired" variable above to get an idea
+% of what the controller is aiming for. 
+% ALSO -- The 'difference' is computed by finding the absolute value of
+% each state variable and its desired value, and then adding all of these
+% differences together.
+wayPointError = 0.1; 
+
+% This counts what wayPoint the quadrotor is currently navigating towards
+wayPointCounter = 1;
+
+% This controls how frequently the LQR controller is used in relation to
+% the iterations of the PD controller. In other words, if LQRinterval is
+% set to x, for every x iterations of the PD controller there will be 1
+% iteration of the LQR controller.
+LQRinterval = 10;
+
+% This is the loop that iterates through time as the quadrotor navigates
+% towards waypoints.
 for i=0:nt 
-    if mod(i,10)==0
-      stateErr = sum( abs(finalStateDesired - state));
-      if stateErr < wayPointError && posCounter == length(wayPoints)
-          nt = i-1;
+    if mod(i,LQRinterval)==0 
+      stateErr = sum( abs(finalStateDesired - state)); %calculating state error)
+      if stateErr < wayPointError && wayPointCounter == length(wayPoints)
+          nt = i-1; %adjusting length of nt if last wayPoint is reached before the last iteration
          break;
       elseif stateErr < wayPointError
-          posCounter = posCounter + 1;
-          finalStateDesired(10:12) = wayPoints(posCounter,:)
+          wayPointCounter = wayPointCounter + 1;
+          finalStateDesired(10:12) = wayPoints(wayPointCounter,:)
       end
       
-      %outer control loop
-      stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired
+      % LQR Controller
+      stateDot = (A - (B * LQRgains)) * state + B * LQRgains * finalStateDesired;
       newState = stateDot*dt + state;
-      stateHist = [stateHist newState];
-      
+      stateHist = [stateHist newState]; %logging state values
       state = newState;
       
     else
        % PD controller to keep robot relatively stable
-       %inner control loop
-       
-       
-       diffs = finalStateDesired - state;
        
        input(2) = Kd*state(4) + Kp*state(1);
        input(3) = Kd*state(5) + Kp*state(2);
 
-       [newState, newMeasuredState] = updateState(state, input, dt);
-       stateHist = [stateHist newState];
-       newMeasuredState = 0.9*C*(A*stateHist(:,end) + B*inputHist(:,end)) + 0.1*(C*stateHist(:,end));
-       measuredStateHist = [measuredStateHist newMeasuredState];
-       inputHist = [inputHist input];
-       
+       %PD controller passes current state, force/torque control inputs,
+       %and time step to an iteration function to calculate next state
+       [newState] = updateState(state, input, dt); 
+       stateHist = [stateHist newState]; %logging state values
        state = newState;
      
     end
@@ -112,10 +146,8 @@ end
 
 t = linspace(0,(nt+2)*dt,nt+2);
 
-length(t)
-length(stateHist(10,:))
-
-
+% PLOTTING STATE HISTORY %
+% Plot 1: Translational Position versus Time
 plot(t, stateHist(10,:)); %plotting x vals versus time
 hold on;
 plot(t, stateHist(11,:)); %plotting y vals versus time
@@ -125,6 +157,7 @@ legend({'x','y','z'}, 'Location','northwest');
 xlabel("Time [sec]");
 ylabel("Position [m]");
 
+% Plot 2: Rotational Position versus Time
 figure();
 plot(t, stateHist(1,:)); %plotting phi vals versus time
 hold on;
@@ -135,6 +168,7 @@ legend({'phi', 'theta', 'psi'});
 xlabel("Time [sec]");
 ylabel("Position [rad]");
 
+% Plot 3: 3D Plot of Quadrotor Trajectory
 figure();
 scatter3(0,0,0, 'filled');
 hold on;
